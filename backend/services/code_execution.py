@@ -36,9 +36,15 @@ except ImportError:
     BOTO3_AVAILABLE = False
     AWSSandboxService = None
 
+try:
+    from services.azure_sandbox import AzureSandboxService
+except ImportError:
+    AzureSandboxService = None
+
 logger = get_logger(__name__)
 
 USE_AWS_SANDBOX = os.environ.get('USE_AWS_SANDBOX', 'false').lower() == 'true'
+USE_AZURE_SANDBOX = os.environ.get('USE_AZURE_SANDBOX', 'false').lower() == 'true'
 
 
 @dataclass
@@ -83,6 +89,7 @@ class CodeExecutionService:
         stack_detector: Optional[StackDetectorService] = None,
         docker_sandbox: Optional[DockerSandboxService] = None,
         aws_sandbox: Optional["AWSSandboxService"] = None,
+        azure_sandbox: Optional["AzureSandboxService"] = None,
         formatter_detector: Optional[FormatterDetectorService] = None,
         security_scanner: Optional[SecurityScannerService] = None,
     ):
@@ -92,10 +99,24 @@ class CodeExecutionService:
         self.security_scanner = security_scanner or SecurityScannerService()
         self.docker_sandbox = docker_sandbox
         self.aws_sandbox = aws_sandbox
+        self.azure_sandbox = azure_sandbox
         self.use_aws = False
+        self.use_azure = False
         
         dev_mode = os.environ.get('DEV_MODE', 'false').lower() == 'true'
-        if not dev_mode and USE_AWS_SANDBOX and BOTO3_AVAILABLE:
+        if not dev_mode and USE_AZURE_SANDBOX and AzureSandboxService is not None:
+            if self.azure_sandbox is None:
+                try:
+                    self.azure_sandbox = AzureSandboxService()
+                    if self.azure_sandbox.is_available():
+                        self.use_azure = True
+                        logger.info("Using Azure sandbox")
+                    else:
+                        logger.warning("Azure sandbox configured but not available")
+                except Exception as e:
+                    logger.warning(f"Azure sandbox not available: {e}")
+
+        if not dev_mode and not self.use_azure and USE_AWS_SANDBOX and BOTO3_AVAILABLE:
             # Production: Use AWS Fargate
             if self.aws_sandbox is None:
                 try:
@@ -109,7 +130,7 @@ class CodeExecutionService:
                     logger.warning(f"AWS sandbox not available: {e}")
         elif dev_mode:
             logger.info("DEV_MODE enabled - using local Docker instead of AWS Fargate")
-        if not self.use_aws and self.docker_sandbox is None and DOCKER_AVAILABLE:
+        if not self.use_azure and not self.use_aws and self.docker_sandbox is None and DOCKER_AVAILABLE:
             try:
                 self.docker_sandbox = DockerSandboxService()
                 logger.info("Using local Docker sandbox")
@@ -209,7 +230,12 @@ class CodeExecutionService:
             result.add_log(f"Detected stack: {stack_config.stack_type}")
             if stack_config.project_root:
                 result.add_log(f"Using project root: {stack_config.project_root}")
-            if self.use_aws and self.aws_sandbox:
+            if self.use_azure and self.azure_sandbox:
+                result.add_log("Using Azure sandbox")
+                return self._run_in_azure(
+                    temp_dir, file_changes, stack_config, run_tests, run_build, result, session, keep_alive
+                )
+            elif self.use_aws and self.aws_sandbox:
                 # Production: Use AWS Fargate
                 result.add_log("Using AWS Fargate sandbox")
                 return self._run_in_aws(
@@ -382,12 +408,76 @@ class CodeExecutionService:
             else:
                 result.add_log(f"Detected stack: {stack_config.stack_type}")
             
-            # Step 3: Choose execution mode (AWS or Local)
+            # Step 3: Choose execution mode (Azure, AWS, or Local)
             # For ad-hoc commands, we follow the same preference as validate_changes
+            if self.use_azure and self.azure_sandbox:
+                result.stage = 'azure_aci'
+                result.add_log("Using Azure sandbox")
+
+                code_files = []
+                for root, dirs, files in os.walk(temp_dir):
+                    dirs[:] = [d for d in dirs if d != '.git']
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, temp_dir)
+                        try:
+                            with open(full_path, 'r', encoding='utf-8') as f:
+                                content = f.read()
+                            code_files.append({'path': rel_path, 'content': content})
+                        except (UnicodeDecodeError, IOError):
+                            continue
+
+                azure_result = self.azure_sandbox.run_validation(
+                    code_files=code_files,
+                    stack_type=stack_config.stack_type,
+                    install_command=':',
+                    test_command=command,
+                )
+
+                result.success = azure_result.success
+                result.exit_code = azure_result.exit_code
+                if azure_result.stdout:
+                    result.add_log(f"Stdout:\n{azure_result.stdout}")
+                if azure_result.stderr:
+                    result.add_log(f"Stderr:\n{azure_result.stderr}")
+                if not azure_result.success:
+                    result.error = azure_result.stderr or f"Ad-hoc command failed with exit code {azure_result.exit_code}"
+                return result
+
             if self.use_aws and self.aws_sandbox:
-                # TODO: Implement AWS support for ad-hoc commands if needed
-                # For now, we'll fall back to local or error if strict AWS is required
-                pass # AWS logic to be added
+                result.stage = 'aws_fargate'
+                result.add_log("Using AWS Fargate sandbox")
+
+                code_files = []
+                for root, dirs, files in os.walk(temp_dir):
+                    dirs[:] = [d for d in dirs if d != '.git']
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, temp_dir)
+                        try:
+                            with open(full_path, 'r', encoding='utf-8') as f:
+                                content = f.read()
+                            code_files.append({'path': rel_path, 'content': content})
+                        except (UnicodeDecodeError, IOError):
+                            # Skip binary files
+                            continue
+
+                aws_result = self.aws_sandbox.run_validation(
+                    code_files=code_files,
+                    stack_type=stack_config.stack_type,
+                    install_command=':',
+                    test_command=command,
+                )
+
+                result.success = aws_result.success
+                result.exit_code = aws_result.exit_code
+                if aws_result.stdout:
+                    result.add_log(f"Stdout:\n{aws_result.stdout}")
+                if aws_result.stderr:
+                    result.add_log(f"Stderr:\n{aws_result.stderr}")
+                if not aws_result.success:
+                    result.error = aws_result.stderr or f"Ad-hoc command failed with exit code {aws_result.exit_code}"
+                return result
             
             if self.docker_sandbox is not None and self.docker_sandbox.is_available():
                 result.stage = 'container'
@@ -441,10 +531,25 @@ class CodeExecutionService:
                 # Run locally
                 result.stage = 'exec_local'
                 result.add_log("Running locally (CAUTION)")
-                
-                # TODO: Implement local run logic similar to _run_locally but for arbitrary command
-                # For now, just error out to be safe
-                result.error = "Local ad-hoc execution not yet implemented"
+
+                exec_result = subprocess.run(
+                    command,
+                    shell=True,
+                    cwd=temp_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+
+                result.success = exec_result.returncode == 0
+                result.exit_code = exec_result.returncode
+                result.add_log(f"Command finished with exit code {exec_result.returncode}")
+                if exec_result.stdout:
+                    result.add_log(f"Stdout:\n{exec_result.stdout}")
+                if exec_result.stderr:
+                    result.add_log(f"Stderr:\n{exec_result.stderr}")
+                if not result.success:
+                    result.error = exec_result.stderr.strip() or f"Ad-hoc command failed with exit code {exec_result.returncode}"
                 return result
                 
         except Exception as e:
@@ -771,6 +876,10 @@ class CodeExecutionService:
             return False
         
         elif stack_config.stack_type == 'python':
+            # If a test command is configured, prefer running it rather than guessing from files.
+            if stack_config.test_command:
+                return True
+
             # For Python, check for pytest/test files
             # If requirements.txt has pytest or there are test files, assume tests exist
             req_path = base_path / 'requirements.txt'
@@ -1423,4 +1532,95 @@ class CodeExecutionService:
             return result
         except Exception as e:
             result.error = f"AWS execution failed: {str(e)}"
+            return result
+
+    def _run_in_azure(
+        self,
+        repo_path: str,
+        file_changes: list[dict],
+        stack_config: StackConfig,
+        run_tests: bool,
+        run_build: bool,
+        result: ExecutionResult,
+        session: Optional[SandboxSession] = None,
+        keep_alive: bool = False,
+    ) -> ExecutionResult:
+        """Run validation in Azure Container Instances."""
+        result.stage = 'azure_aci'
+
+        if not self.azure_sandbox:
+            result.error = "Azure sandbox is not initialized"
+            return result
+
+        if session:
+            result.add_log(f"Reusing workspace for Azure: {session.id}")
+
+        try:
+            code_files = []
+            for root, dirs, files in os.walk(repo_path):
+                dirs[:] = [d for d in dirs if d != '.git']
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, repo_path)
+                    try:
+                        with open(full_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        code_files.append({'path': rel_path, 'content': content})
+                    except (UnicodeDecodeError, IOError):
+                        pass
+
+            result.add_log(f"Uploading {len(code_files)} files to Azure")
+
+            install_command = stack_config.install_command
+            test_command = stack_config.test_command if run_tests else "echo 'Skipping tests'"
+            if run_build and stack_config.build_command:
+                test_command = f"{test_command} && {stack_config.build_command}"
+
+            if stack_config.project_root:
+                install_command = self._prefix_project_root_command(
+                    stack_config.project_root,
+                    install_command
+                )
+                test_command = self._prefix_project_root_command(
+                    stack_config.project_root,
+                    test_command
+                )
+
+            azure_result = self.azure_sandbox.run_validation(
+                code_files=code_files,
+                stack_type=stack_config.stack_type,
+                install_command=install_command,
+                test_command=test_command,
+            )
+
+            result.add_log(f"Azure task completed in {azure_result.duration_seconds:.1f}s")
+            result.add_log(f"Exit code: {azure_result.exit_code}")
+            if azure_result.stdout:
+                result.add_log(f"Output:\n{azure_result.stdout}")
+            if azure_result.stderr:
+                result.add_log(f"Errors:\n{azure_result.stderr}")
+
+            result.success = azure_result.success
+            result.exit_code = azure_result.exit_code
+
+            if not azure_result.success:
+                result.error = f"Tests failed with exit code {azure_result.exit_code}"
+
+            if keep_alive:
+                import uuid
+                session_id = session.id if session else str(uuid.uuid4())
+                result.session = SandboxSession(
+                    id=session_id,
+                    type='azure',
+                    work_dir=repo_path,
+                    resource_id='ephemeral-aci',
+                    stack_config=stack_config
+                )
+
+            return result
+        except TimeoutError as e:
+            result.error = str(e)
+            return result
+        except Exception as e:
+            result.error = f"Azure execution failed: {str(e)}"
             return result

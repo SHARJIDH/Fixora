@@ -12,8 +12,7 @@ import { dodopayments, checkout, portal, webhooks } from "@dodopayments/better-a
 const databaseUrl = process.env.DATABASE_URL;
 const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET || "dummy_webhook_key";
 console.log("[Auth Debug] Initializing Better Auth...");
-console.log("[Auth Debug] Webhook secret configured:", webhookSecret ? `${webhookSecret.substring(0, 10)}...` : "NOT SET");
-console.log("[Auth Debug] Webhook secret length:", webhookSecret?.length);
+console.log("[Auth Debug] Webhook secret configured:", webhookSecret ? "YES" : "NOT SET");
 
 const dodoClient = new DodoPayments({
   bearerToken: process.env.DODO_PAYMENTS_API_KEY || "dummy_key",

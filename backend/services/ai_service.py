@@ -11,6 +11,7 @@ ENABLE_LLM_CACHE = os.environ.get('ENABLE_LLM_CACHE', 'false').lower() == 'true'
 LLM_CACHE_DIR = Path(os.environ.get('LLM_CACHE_DIR', '/tmp/llm_cache'))
 MAX_FILE_CHARS = 2_000
 MAX_TURNS = 5
+ENABLE_SCREENSHOT_TOOL = os.environ.get('ENABLE_SCREENSHOT_TOOL', 'false').lower() == 'true'
 
 logger = get_logger(__name__)
 
@@ -109,7 +110,7 @@ class AIService:
                                 "description": "The complete new content for the file"
                             }
                         },
-                        "required": ["file_path", "reason", "new_content"]
+                        "required": ["file_path", "new_content", "reason"]
                     }
                 }
             },
@@ -164,24 +165,25 @@ class AIService:
                 }
             })
 
-        # Add screenshot tool
-        tools.append({
-            "type": "function",
-            "function": {
-                "name": "take_screenshot",
-                "description": "Take a screenshot of a URL to verify UI changes or show the user the current state.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "url": {
-                            "type": "string",
-                            "description": "The URL to capture (e.g., http://localhost:3000)"
-                        }
-                    },
-                    "required": ["url"]
+        # Add screenshot tool only when explicitly enabled to keep default tool contract stable.
+        if ENABLE_SCREENSHOT_TOOL:
+            tools.append({
+                "type": "function",
+                "function": {
+                    "name": "take_screenshot",
+                    "description": "Take a screenshot of a URL to verify UI changes or show the user the current state.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string",
+                                "description": "The URL to capture (e.g., http://localhost:3000)"
+                            }
+                        },
+                        "required": ["url"]
+                    }
                 }
-            }
-        })
+            })
         
         system_prompt = """You are an expert software engineer. Analyze the GitHub issue and suggest code changes.
 
@@ -384,26 +386,26 @@ Analyze this issue and determine what code changes are needed. Use the edit_file
                             
                             if new_content:
                                 new_content = new_content.replace('\\n', '\n').replace('\\r\\n', '\n').replace('\\r', '\n')
-                            
-                                file_changes.append({
-                                    'type': 'edit',
-                                    'file_path': file_path,
-                                    'new_content': new_content,
-                                    'reason': reason
-                                })
 
-                                if job_id:
-                                    from services import db
-                                    db.insert_job_log({
-                                        'job_id': job_id,
-                                        'role': 'assistant',
-                                        'type': 'file_change',
-                                        'content': reason or f"Editing {file_path}",
-                                        'metadata': {
-                                            'file_path': file_path,
-                                            'new_content': new_content
-                                        }
-                                    })
+                            file_changes.append({
+                                'type': 'edit',
+                                'file_path': file_path,
+                                'new_content': new_content,
+                                'reason': reason
+                            })
+
+                            if job_id:
+                                from services import db
+                                db.insert_job_log({
+                                    'job_id': job_id,
+                                    'role': 'assistant',
+                                    'type': 'file_change',
+                                    'content': reason or f"Editing {file_path}",
+                                    'metadata': {
+                                        'file_path': file_path,
+                                        'new_content': new_content
+                                    }
+                                })
                         except Exception as e:
                             logger.error("tool_arg_parse_error", error=str(e))
                             
@@ -518,7 +520,7 @@ Analyze this issue and determine what code changes are needed. Use the edit_file
                                 "description": "The complete new content for the file"
                             }
                         },
-                        "required": ["file_path", "reason", "new_content"]
+                        "required": ["file_path", "new_content", "reason"]
                     }
                 }
             },

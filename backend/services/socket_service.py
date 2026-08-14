@@ -1,5 +1,4 @@
 import os
-from flask_socketio import SocketIO
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -11,6 +10,7 @@ _socketio = None
 def get_socketio():
     global _socketio
     if _socketio is None:
+        from flask_socketio import SocketIO
         _socketio = SocketIO(message_queue=REDIS_URL, async_mode='gevent')
     return _socketio
 
