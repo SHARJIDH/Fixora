@@ -200,6 +200,12 @@ AZURE_LOCATION=centralindia
 # Enable Azure only when needed for execution runs
 export USE_AZURE_SANDBOX=true
 
+# Optional: keep it enabled only for one command
+USE_AZURE_SANDBOX=true python backend/app.py
+
+# Turn it off after your Azure validation run
+export USE_AZURE_SANDBOX=false
+
 # AWS fallback is not required for Azure mode.
 # Only set AWS_* keys if you explicitly enable USE_AWS_SANDBOX=true.
 ```
