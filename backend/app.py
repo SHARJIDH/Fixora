@@ -22,6 +22,7 @@ from services.ai_service import AIService, DEFAULT_MODEL
 from services.shared import AVAILABLE_MODELS
 from services.github_service import GitHubService
 from services.groq_service import GroqService
+from services.guardrails import validate_manual_prompt, safe_preview
 from services.redis_service import (
     acquire_lock,
     enqueue_job,
@@ -302,12 +303,13 @@ def build_webhook_job(repo_full_name, issue_number, issue_title, initial_log):
 
 
 def build_manual_job(job_id, repo_full_name, prompt, user_id):
+    prompt_preview = safe_preview(prompt, max_chars=50)
     return {
         'id': job_id,
         'user_id': user_id,
         'repo': repo_full_name,
         'issueNumber': None,
-        'issueTitle': f"Manual Task: {prompt[:50]}...",
+        'issueTitle': f"Manual Task: {prompt_preview}",
         'status': 'processing',
         'stage': 'analyzing',
         'retryCount': 0,
@@ -772,6 +774,10 @@ def create_manual_job():
 
     if not repo_full_name or not prompt:
         return jsonify({'error': 'repo and prompt are required'}), 400
+
+    guardrail = validate_manual_prompt(prompt)
+    if not guardrail.allowed:
+        return jsonify({'error': guardrail.reason}), 400
 
     github_token = config.get('github_token')
     if not github_token:

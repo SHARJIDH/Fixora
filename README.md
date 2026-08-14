@@ -277,6 +277,41 @@ The dashboard will be available at `http://localhost:3000` and the API at `http:
 
 ---
 
+## Guardrails & Evals
+
+Fixora includes lightweight guardrails to reduce risky behavior in manual prompts and AI-issued shell commands.
+
+### Guardrails Included
+
+- Manual prompt guardrails:
+      - Reject empty prompts
+      - Reject oversized prompts (configurable with `MAX_MANUAL_PROMPT_CHARS`)
+      - Block obvious secret-exfiltration intent patterns
+- Exec command guardrails:
+      - Reject oversized commands (configurable with `MAX_EXEC_COMMAND_CHARS`)
+      - Block destructive/system-level patterns (`rm -rf /`, `mkfs`, `shutdown`, etc.)
+      - Block environment/secret leakage patterns (`printenv`, metadata endpoint access)
+- Log safety:
+      - Redacts common token/key patterns before previews are logged
+
+### Run Tests
+
+```bash
+cd backend
+pytest tests/test_guardrails.py -q
+```
+
+### Run Evals
+
+```bash
+cd backend
+python evals/run_guardrail_evals.py
+```
+
+The eval script exits non-zero if any expected allow/block behavior fails.
+
+---
+
 ## Supported Languages & Frameworks
 
 | Language | Package Managers | Test Frameworks | Type Checking |

@@ -3,6 +3,7 @@ import os
 import hashlib
 from pathlib import Path
 from openai import OpenAI
+from services.guardrails import validate_exec_command, safe_preview
 from utils.logger import get_logger
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -307,7 +308,18 @@ Analyze this issue and determine what code changes are needed. Use the edit_file
                             try:
                                 args = json.loads(tool_call.function.arguments)
                                 command = args.get('command')
-                                logger.info("executing_command", command=command)
+                                logger.info("executing_command", command_preview=safe_preview(command, max_chars=120))
+
+                                command_guardrail = validate_exec_command(command)
+                                if not command_guardrail.allowed:
+                                    output = f"Blocked by guardrails: {command_guardrail.reason}"
+                                    tool_outputs.append({
+                                        "tool_call_id": tool_call.id,
+                                        "role": "tool",
+                                        "name": "exec",
+                                        "content": output
+                                    })
+                                    continue
                                 
                                 exec_result = code_execution_service.run_adhoc_command(
                                     repo_url=repo_url,
