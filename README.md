@@ -208,6 +208,9 @@ USE_AZURE_SANDBOX=true python backend/app.py
 # Turn it off after your Azure validation run
 export USE_AZURE_SANDBOX=false
 
+# Verify current sandbox flags
+echo "USE_AZURE_SANDBOX=$USE_AZURE_SANDBOX USE_AWS_SANDBOX=$USE_AWS_SANDBOX"
+
 # AWS fallback is not required for Azure mode.
 # Only set AWS_* keys if you explicitly enable USE_AWS_SANDBOX=true.
 ```
