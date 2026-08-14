@@ -26,7 +26,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
     },
     {
       title: "Enterprise Grade Security",
-      description: "All code execution happens in secure, isolated sandboxes. Your secrets and codebase are always protected.",
+      description: "All code execution happens in secure, isolated cloud sandboxes with safe local fallback. Your secrets and codebase are always protected.",
       icon: <Shield className="w-8 h-8 text-orange-500" />,
       content: (
         <div className="flex flex-col gap-3 mt-6">
