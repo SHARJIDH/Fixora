@@ -54,7 +54,7 @@ function SimpleNode({ data }: { data: { label: string; icon: React.ElementType; 
   );
 }
 
-// Security Node - Docker Sandbox with badge
+// Security Node - Cloud Sandbox with badge
 function SecurityNode({ data }: { data: { label: string; icon: React.ElementType } }) {
   const Icon = data.icon;
   return (
@@ -111,7 +111,7 @@ const architectureNodes: Node[] = [
     id: "sandbox",
     type: "security",
     position: { x: 540, y: 95 },
-    data: { label: "Docker Sandbox", icon: Container },
+    data: { label: "Cloud Sandbox", icon: Container },
   },
   {
     id: "tests",
@@ -194,7 +194,7 @@ function MobileArchitectureView() {
     { icon: Github, label: "GitHub", color: "blue" },
     { icon: Server, label: "Flask API", color: "purple" },
     { icon: Bot, label: "AI Engine", color: "amber" },
-    { icon: Container, label: "Docker Sandbox", color: "emerald", security: true },
+    { icon: Container, label: "Cloud Sandbox", color: "emerald", security: true },
     { icon: Terminal, label: "Run Tests", color: "emerald" },
     { icon: GitPullRequest, label: "Pull Request", color: "green" },
   ];

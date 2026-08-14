@@ -32,7 +32,7 @@ Traditional CI/CD pipelines execute predefined steps. **Fixora is an intelligent
 | Runs pre-written scripts | Reasons about code with LLMs |
 | Requires manual code changes | Generates code autonomously |
 | No validation before PR | Validates in isolated sandboxes |
-| Single CI provider | Multi-cloud execution (AWS Fargate, Docker) |
+| Single CI provider | Multi-cloud execution (Azure ACI, AWS Fargate, Docker) |
 | One model, one provider | Multi-LLM support (Claude, GPT-4, Groq) |
 
 ---
@@ -47,11 +47,12 @@ Traditional CI/CD pipelines execute predefined steps. **Fixora is an intelligent
 - **Codebase Memory** — Persistent context storage per repository for improved AI decision-making
 
 ### Autonomous Code Validation & Sandboxing
+- **Azure ACI Sandbox** — Isolated on-demand containers for low-cost cloud validation
 - **AWS Fargate Sandbox** — Isolated serverless containers for safe code execution in production
 - **Local Docker Sandbox** — Container-based validation for development environments
 - **Full Stack Detection** — Auto-detects Python (pip/poetry), Node.js (npm/yarn/pnpm), Java, Go, Rust
 - **Validation Pipeline** — Dependency installation, test execution, type checking (TypeScript/MyPy), linting, security scanning
-- **Graceful Fallback** — Fargate → Docker → Local execution chain
+- **Graceful Fallback** — Azure ACI → AWS Fargate → Docker → Local execution chain
 
 ### GitHub Integration & Automation
 - **Webhook-Driven** — Real-time event processing for issue comments and PR feedback
@@ -96,14 +97,15 @@ Traditional CI/CD pipelines execute predefined steps. **Fixora is an intelligent
 │   Real-time: Socket.IO   │                │                        │
 │                          │   ┌────────────▼─────────────────────┐  │
 │                          │   │     Execution Sandboxes           │  │
-│                          │   │  ┌───────┐ ┌────────┐ ┌───────┐  │  │
-│                          │   │  │AWS    │ │Docker  │ │Local  │  │  │
-│                          │   │  │Fargate│ │Container│ │Exec  │  │  │
-│                          │   │  └───────┘ └────────┘ └───────┘  │  │
+│                          │   │  ┌───────┐ ┌───────┐ ┌────────┐ ┌───────┐ │  │
+│                          │   │  │Azure  │ │AWS    │ │Docker  │ │Local  │ │  │
+│                          │   │  │ACI    │ │Fargate│ │Container│ │Exec  │ │  │
+│                          │   │  └───────┘ └───────┘ └────────┘ └───────┘ │  │
 │                          │   └──────────────────────────────────┘  │
 ├──────────────────────────┴──────────────────────────────────────────┤
-│  External Services: GitHub API · OpenRouter · Groq · AWS (ECS/S3/  │
-│  CloudWatch/ECR) · Redis · PostgreSQL · Dodo Payments              │
+│  External Services: GitHub API · OpenRouter · Groq · Azure (ACI/   │
+│  Storage/ACR) · AWS (ECS/S3/CloudWatch/ECR) · Redis · PostgreSQL   │
+│  · Dodo Payments                                                    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -131,7 +133,7 @@ GitHub Issue/PR Comment
   Create Branch + Commit Changes
         │
         ▼
-  Validate in Sandbox ──► AWS Fargate │ Docker │ Local
+      Validate in Sandbox ──► Azure ACI │ AWS Fargate │ Docker │ Local
         │
         ▼
   Create Pull Request
@@ -180,6 +182,28 @@ DATABASE_URL=postgresql://...        # Optional, defaults to SQLite
 AWS_ACCESS_KEY_ID=your_key
 AWS_SECRET_ACCESS_KEY=your_secret
 AWS_REGION=us-east-1
+
+# Azure Sandbox (Optional, recommended low-cost defaults)
+USE_AZURE_SANDBOX=false
+AZURE_EXECUTION_MODE=aci
+AZURE_ACI_CPU=0.5
+AZURE_ACI_MEMORY_GB=1
+AZURE_ACI_TIMEOUT_SECONDS=300
+AZURE_ENABLE_LOG_ANALYTICS=false
+
+# REQUIRED when provisioning Azure resources
+AZURE_TENANT_ID=...
+AZURE_CLIENT_ID=...
+AZURE_CLIENT_SECRET=...
+AZURE_SUBSCRIPTION_ID=...
+AZURE_RESOURCE_GROUP=fixora-rg
+AZURE_LOCATION=centralindia
+
+# Bootstrap Azure resources from repo root
+./infrastructure/bootstrap_azure.sh
+
+# Enable Azure only when needed for execution runs
+export USE_AZURE_SANDBOX=true
 ```
 
 ### 3. Run
@@ -221,12 +245,12 @@ The dashboard will be available at `http://localhost:3000` and the API at `http:
 | **Frontend** | Next.js 14, TypeScript, React, Tailwind CSS, Shadcn UI, Socket.IO Client, React Flow |
 | **Backend** | Python 3.11, Flask, Flask-SocketIO, SQLAlchemy, Celery |
 | **AI/LLM** | OpenRouter (Claude 3.5 Sonnet), Groq, OpenAI GPT-4, Function Calling |
-| **Cloud** | AWS ECS Fargate, S3, ECR, CloudWatch, IAM, VPC |
+| **Cloud** | Azure ACI, Azure Storage, Azure Container Registry, AWS ECS Fargate, S3, ECR, CloudWatch, IAM, VPC |
 | **Database** | PostgreSQL (production), SQLite (development) |
 | **Queue** | Redis |
 | **Auth** | Better-Auth (GitHub OAuth, Google OAuth) |
 | **Payments** | Dodo Payments |
-| **Containerization** | Docker, AWS Fargate |
+| **Containerization** | Docker, Azure ACI, AWS Fargate |
 | **CI/CD** | GitHub Actions |
 
 ---
@@ -258,7 +282,7 @@ The dashboard will be available at `http://localhost:3000` and the API at `http:
 
 ## Roadmap
 
-- [ ] Multi-cloud sandbox support (Azure Container Instances, GCP Cloud Run)
+- [ ] Expand multi-cloud sandbox support (Container Apps, GCP Cloud Run)
 - [ ] Kubernetes-native execution mode
 - [ ] Slack / Discord notifications
 - [ ] Jira and Linear integration

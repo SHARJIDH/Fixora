@@ -11,7 +11,8 @@ Flow:
 7. Return result with logs
 
 Sandbox modes:
-- AWS Fargate (production): USE_AWS_SANDBOX=true
+- Azure ACI (production): USE_AZURE_SANDBOX=true
+- AWS Fargate (production fallback): USE_AWS_SANDBOX=true
 - Local Docker (development): Docker available
 - Local fallback: No Docker available
 """

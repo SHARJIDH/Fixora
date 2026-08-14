@@ -23,7 +23,7 @@ const featureCards = [
   {
     icon: Shield,
     title: "Sandbox validation",
-    description: "All changes validated in isolated Docker containers before creating PRs.",
+    description: "All changes validated in isolated cloud sandboxes (Azure/AWS) with Docker fallback before creating PRs.",
   },
   {
     icon: Layers,

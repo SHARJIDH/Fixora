@@ -39,9 +39,9 @@ class AzureConfig:
     storage_account: str = ""
     storage_container: str = "jobs"
     container_image: str = ""
-    aci_cpu: float = 2.0
-    aci_memory_gb: float = 4.0
-    task_timeout_seconds: int = 900
+    aci_cpu: float = 0.5
+    aci_memory_gb: float = 1.0
+    task_timeout_seconds: int = 300
     name_prefix: str = "fixora"
     subnet_id: str = ""
 
@@ -58,9 +58,9 @@ class AzureConfig:
             storage_account=os.environ.get("AZURE_STORAGE_ACCOUNT", ""),
             storage_container=os.environ.get("AZURE_STORAGE_CONTAINER", "jobs"),
             container_image=os.environ.get("AZURE_CONTAINER_IMAGE", ""),
-            aci_cpu=float(os.environ.get("AZURE_ACI_CPU", "2")),
-            aci_memory_gb=float(os.environ.get("AZURE_ACI_MEMORY_GB", "4")),
-            task_timeout_seconds=int(os.environ.get("AZURE_ACI_TIMEOUT_SECONDS", "900")),
+            aci_cpu=float(os.environ.get("AZURE_ACI_CPU", "0.5")),
+            aci_memory_gb=float(os.environ.get("AZURE_ACI_MEMORY_GB", "1")),
+            task_timeout_seconds=int(os.environ.get("AZURE_ACI_TIMEOUT_SECONDS", "300")),
             name_prefix=os.environ.get("AZURE_NAME_PREFIX", "fixora"),
             subnet_id=os.environ.get("AZURE_VNET_SUBNET_ID", ""),
         )
