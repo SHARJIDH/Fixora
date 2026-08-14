@@ -1019,7 +1019,7 @@ print(f"  Working directory: {os.getcwd()}")
 # Test 2: Read a file
 print("\\n[TEST 2] Creating and reading a test file:")
 with open("test_file.txt", "w") as f:
-    f.write("Hello from AWS Sandbox!")
+    f.write("Hello from Fixora sandbox!")
 with open("test_file.txt", "r") as f:
     content = f.read()
 print(f"  File content: {content}")
