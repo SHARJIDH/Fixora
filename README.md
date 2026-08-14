@@ -48,11 +48,11 @@ Traditional CI/CD pipelines execute predefined steps. **Fixora is an intelligent
 
 ### Autonomous Code Validation & Sandboxing
 - **Azure ACI Sandbox** — Isolated on-demand containers for low-cost cloud validation
-- **AWS Fargate Sandbox** — Isolated serverless containers for safe code execution in production
+- **AWS Fargate Fallback (Optional)** — Legacy/optional serverless fallback if explicitly enabled
 - **Local Docker Sandbox** — Container-based validation for development environments
 - **Full Stack Detection** — Auto-detects Python (pip/poetry), Node.js (npm/yarn/pnpm), Java, Go, Rust
 - **Validation Pipeline** — Dependency installation, test execution, type checking (TypeScript/MyPy), linting, security scanning
-- **Graceful Fallback** — Azure ACI → AWS Fargate → Docker → Local execution chain
+- **Graceful Fallback** — Azure ACI → AWS Fargate (optional) → Docker → Local execution chain
 
 ### GitHub Integration & Automation
 - **Webhook-Driven** — Real-time event processing for issue comments and PR feedback
@@ -178,11 +178,6 @@ GROQ_API_KEY=your_groq_key          # Optional
 REDIS_URL=redis://localhost:6379     # Optional
 DATABASE_URL=postgresql://...        # Optional, defaults to SQLite
 
-# AWS Sandbox (Optional)
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-AWS_REGION=us-east-1
-
 # Azure Sandbox (Optional, recommended low-cost defaults)
 USE_AZURE_SANDBOX=false
 AZURE_EXECUTION_MODE=aci
@@ -204,6 +199,9 @@ AZURE_LOCATION=centralindia
 
 # Enable Azure only when needed for execution runs
 export USE_AZURE_SANDBOX=true
+
+# AWS fallback is not required for Azure mode.
+# Only set AWS_* keys if you explicitly enable USE_AWS_SANDBOX=true.
 ```
 
 ### 3. Run
@@ -232,7 +230,7 @@ The dashboard will be available at `http://localhost:3000` and the API at `http:
 1. **Trigger** — A user mentions the bot in a GitHub issue or PR comment
 2. **Analyze** — The agent fetches the repository structure and relevant files, then uses multi-turn LLM reasoning to understand the problem
 3. **Generate** — AI generates targeted code changes using function calling (file edits, replacements, insertions)
-4. **Validate** — Changes are tested in an isolated sandbox (AWS Fargate, Docker, or local) — running tests, type checks, linting, and security scans
+4. **Validate** — Changes are tested in an isolated sandbox (Azure ACI by default, AWS Fargate optional fallback, Docker/local fallback) — running tests, type checks, linting, and security scans
 5. **Deliver** — A pull request is created with the validated changes, complete with a detailed description
 6. **Monitor** — The entire pipeline streams real-time updates to the dashboard via Socket.IO
 
