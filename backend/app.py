@@ -989,9 +989,15 @@ def health_check():
 
 @app.route('/api/test-sandbox', methods=['POST'])
 def test_sandbox():
-    if not os.environ.get('USE_AWS_SANDBOX'):
+    use_aws = os.environ.get('USE_AWS_SANDBOX', 'false').lower() == 'true'
+    use_azure = os.environ.get('USE_AZURE_SANDBOX', 'false').lower() == 'true'
+
+    if not use_aws and not use_azure:
         return jsonify({
-            'error': 'AWS sandbox not enabled. Set USE_AWS_SANDBOX=true in .env'
+            'error': (
+                'No cloud sandbox enabled. Set USE_AZURE_SANDBOX=true '
+                '(recommended) or USE_AWS_SANDBOX=true in .env'
+            )
         }), 400
     
     data = request.get_json() or {}
