@@ -312,7 +312,10 @@ sh -c \"$TEST_COMMAND\"
                     success=False,
                     exit_code=-1,
                     stdout="",
-                    stderr=f"Azure ACI task timed out after {self.config.task_timeout_seconds}s",
+                    stderr=(
+                        f"Azure ACI task timed out after {self.config.task_timeout_seconds}s. "
+                        "Increase AZURE_ACI_TIMEOUT_SECONDS for heavier builds/tests."
+                    ),
                     container_name=container_name,
                     duration_seconds=time.time() - start,
                 )
