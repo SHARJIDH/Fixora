@@ -197,6 +197,8 @@ AZURE_LOCATION=centralindia
 # Bootstrap Azure resources from repo root
 ./infrastructure/bootstrap_azure.sh
 
+# Note: script name is bootstrap_azure.sh (not bootstap_azure.sh)
+
 # Enable Azure only when needed for execution runs
 export USE_AZURE_SANDBOX=true
 
